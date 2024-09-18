@@ -2,79 +2,50 @@
 
 This Python script automates the process of converting variable fonts (.ttf) to multiple static font instances. It's designed to process all variable fonts in a specified directory, creating static instances for predefined or custom weight values.
 
-## Features
+## Key Features
 
-- Converts variable fonts to static instances
-- Supports batch processing of multiple fonts
-- Configurable weight values via JSON file
-- Command-line arguments for specifying input and output directories
-- Parallel processing for improved performance
-- Progress bar for visual feedback
-- Detailed logging
+- **Automatic Font Processing**: Place your variable font files (.ttf) in the `myenv/fonts/` folder, and the script will automatically detect and process them.
+- **Intelligent Output**: The script creates an output folder for each processed font, naming it after the original font file.
+- **Batch Processing**: Converts multiple variable fonts in a single run.
+- **Customizable Weights**: Define custom weight values via a configuration file.
+
+## How It Works
+
+1. **Input**: Place your variable font files (.ttf) in the `myenv/fonts/` directory.
+2. **Processing**: Run the script. It automatically detects and processes all .ttf files in the input directory.
+3. **Output**: For each input font, the script creates a dedicated output folder named after the font. Inside this folder, you'll find the generated static font instances.
+
+## Usage
+
+1. Ensure you have Python and the required dependencies installed.
+2. Place your variable font files in the `myenv/fonts/` directory.
+3. Run the script:
+   ```
+   python src/scripts/variable_to_static_font_converter.py
+   ```
+4. Check the `myenv/fonts/output/` directory for your converted fonts. Each font will have its own subfolder.
+
+## Example
+
+If you place `MyFont-Variable.ttf` in the `myenv/fonts/` directory and run the script, you'll find the output in `myenv/fonts/output/MyFont-Variable/`, containing files like:
+- `MyFont-Variable-Thin.ttf`
+- `MyFont-Variable-Regular.ttf`
+- `MyFont-Variable-Bold.ttf`
+(Exact output files depend on the weight configurations)
+
+## Configuration
+
+You can customize the weight values by modifying the `config.json` file in the script's directory.
 
 ## Requirements
 
 - Python 3.6+
 - fonttools
-- tqdm
+- (Any other dependencies your script uses)
 
 ## Installation
 
-1. Clone this repository or download the script.
-2. Install the required packages:
-
-```bash
-pip install fonttools tqdm
-```
-
-## Usage
-
-1. Place your variable font files (.ttf) in the input directory.
-
-2. (Optional) Create a `config.json` file in the same directory as the script to specify custom weights:
-
-```json
-{
-  "weights": {
-    "Thin": 100,
-    "Regular": 400,
-    "Bold": 700
-  }
-}
-```
-
-3. Run the script:
-
-```bash
-python font_converter.py --input /path/to/input/fonts --output /path/to/output
-```
-
-Or use default paths:
-
-```bash
-python font_converter.py
-```
-
-## Output
-
-The script will create an output directory structure as follows:
-
-```
-output/
-├── Font1/
-│   ├── Font1-Thin.ttf
-│   ├── Font1-Regular.ttf
-│   └── Font1-Bold.ttf
-├── Font2/
-│   ├── Font2-Thin.ttf
-│   ├── Font2-Regular.ttf
-│   └── Font2-Bold.ttf
-...
-```
-
-## Logging
-
-The script generates a `font_conversion.log` file with detailed information about the conversion process.
+(Include installation instructions here)
 
 ## Contributing
 
