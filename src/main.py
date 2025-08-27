@@ -1,14 +1,35 @@
+from datetime import datetime
 import os
-import sys
 import logging
+from find_system_fonts_filename import get_system_fonts_filename
 from fontTools import ttLib
 from fontTools.varLib import instancer
+
+from lib.weights import WEIGHTS
+
+
+LOGS_DIR = os.path.join(
+    os.path.dirname(
+        os.path.abspath(__file__),
+    ),
+    "..",
+    "logs",
+)
+os.makedirs(LOGS_DIR, exist_ok=True)
+
+# Create timestamp-based log filename
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+log_filename = f"font_conversion_{timestamp}.log"
+
 
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("font_conversion.log"), logging.StreamHandler()],
+    handlers=[
+        logging.FileHandler(os.path.join(LOGS_DIR, log_filename)),
+        logging.StreamHandler(),
+    ],
 )
 
 
@@ -29,81 +50,147 @@ def update_font_names(font, weight_name):
             name.string = new_name.encode(name.getEncoding())
 
 
-def create_static_fonts(input_font, output_dir, weights):
-    try:
-        # Load the variable font
-        font = ttLib.TTFont(input_font)
-        logging.info(f"Loaded variable font: {input_font}")
+def create_static_fonts(selected_fonts):
+    overwrite_mode = None
+    for font_number, input_font in selected_fonts:
+        try:
+            font = ttLib.TTFont(input_font)
+            if "fvar" not in font:
+                continue
+            font_dir = os.path.dirname(input_font)
+            font_basename = os.path.splitext(os.path.basename(input_font))[0]
 
-        # Create static instances for each specified weight
-        for weight_name, weight_value in weights.items():
-            output_path = os.path.join(
-                output_dir,
-                f"{os.path.splitext(os.path.basename(input_font))[0]}-{weight_name}.ttf",
+            fonts_to_create = []
+            existing_fonts = []
+            for weight_name, weight_value in WEIGHTS.items():
+                output_path = os.path.join(
+                    font_dir, f"{font_basename}-{weight_name}.ttf"
+                )
+                fonts_to_create.append((weight_name, weight_value, output_path))
+                if os.path.exists(output_path):
+                    existing_fonts.append((weight_name, output_path))
+
+            if (
+                existing_fonts
+                and overwrite_mode != "all"
+                and overwrite_mode != "skip_all"
+            ):
+                print(f"\nFont: {os.path.basename(input_font)}")
+                print("The following static fonts already exist:")
+                for weight_name, existing_path in existing_fonts:
+                    print(f"- {os.path.basename(existing_path)}")
+
+                while True:
+                    choice = (
+                        input(
+                            "\nChoose action:\n"
+                            "Overwrite existing fonts: 'o'\n"
+                            "Skip this font: s\n"
+                            "Overwrite all existing fonts (for this and following): O\n"
+                            "Skip all existing fonts (for this and following): S\n"
+                            "Cancel operation: c\n"
+                            "Choice: "
+                        )
+                        .lower()
+                        .strip()
+                    )
+
+                    if choice == "o":
+                        break
+                    elif choice == "s":
+                        fonts_to_create = [
+                            (w, v, p)
+                            for w, v, p in fonts_to_create
+                            if not os.path.exists(p)
+                        ]
+                        break
+                    elif choice == "O":
+                        overwrite_mode = "all"
+                        break
+                    elif choice == "S":
+                        overwrite_mode = "skip_all"
+                        fonts_to_create = [
+                            (w, v, p)
+                            for w, v, p in fonts_to_create
+                            if not os.path.exists(p)
+                        ]
+                        break
+                    elif choice == "c":
+                        return
+                    else:
+                        print("Invalid choice")
+            elif existing_fonts and overwrite_mode == "skip_all":
+                fonts_to_create = [
+                    (w, v, p) for w, v, p in fonts_to_create if not os.path.exists(p)
+                ]
+            if not fonts_to_create:
+                print(f"No new fonts to create for {os.path.basename(input_font)}")
+                continue
+            for weight_name, weight_value, output_path in fonts_to_create:
+                try:
+                    static_font = instancer.instantiateVariableFont(
+                        font, {"wght": weight_value}
+                    )
+                    update_font_names(static_font, weight_name)
+                    static_font.save(output_path)
+                except Exception as e:
+                    logging.error(
+                        f"Failed to create static font for weight {weight_name} of {os.path.basename(input_font)}: {str(e)}"
+                    )
+            logging.info(
+                f"Font conversion completed successfully for {os.path.basename(input_font)}"
+            )
+        except Exception as e:
+            logging.error(
+                f"An error occurred during font conversion for {os.path.basename(input_font)}: {str(e)}"
             )
 
-            try:
-                # Create a new instance with the specified weight
-                static_font = instancer.instantiateVariableFont(
-                    font, {"wght": weight_value}
-                )
 
-                # Update the font names
-                update_font_names(static_font, weight_name)
+def process_variable_fonts(variable_fonts):
+    counter = 0
+    numbered_fonts = {}
 
-                # Save the new static font
-                static_font.save(output_path)
-                logging.info(f"Created static font: {os.path.abspath(output_path)}")
-            except Exception as e:
-                logging.error(
-                    f"Failed to create static font for weight {weight_name}: {str(e)}"
-                )
+    for variable_font in variable_fonts:
+        counter += 1
+        print(f"{counter}. {os.path.basename(variable_font)}")
+        numbered_fonts[counter] = variable_font
 
-        logging.info(f"Font conversion completed successfully for {input_font}")
-    except Exception as e:
-        logging.error(
-            f"An error occurred during font conversion for {input_font}: {str(e)}"
-        )
+    print(
+        "\nSelect a single, or range of fonts...\n"
+        "- For a single font: n\n"
+        "- For a range of fonts: n-m\n"
+        "- For multiple single or range of fonts (space after comma is valid): n, m-p, ...\n"
+    )
 
+    user_input = input(f"Fonts (1-{counter}): ")
+    normalized_inputs = []
 
-def process_fonts_in_directory(font_dir):
-    # Define the weights you want to generate with their conventional values
-    weights = {
-        "Thin": 100,
-        "ExtraLight": 200,
-        "Light": 300,
-        "Regular": 400,
-        "Medium": 500,
-        "SemiBold": 600,
-        "Bold": 700,
-        "ExtraBold": 800,
-        "Black": 900,
-    }
+    try:
+        parts = user_input.replace(" ", "").split(",")
+        for part in parts:
+            if "-" in part:
+                start, end = map(int, part.split("-"))
+                if start > end:
+                    start, end = end, start
+                normalized_inputs.extend(range(start, end + 1))
+            else:
+                normalized_inputs.append(int(part))
+        normalized_inputs = sorted(set(normalized_inputs))
+        print(f"\nProcessing fonts: {normalized_inputs}\n")
+    except ValueError:
+        print("Invalid input. Please enter valid font selections.")
+        return
 
-    # Process each .ttf file in the directory
-    for filename in os.listdir(font_dir):
-        if filename.lower().endswith(".ttf"):
-            input_font = os.path.join(font_dir, filename)
-            output_dir = os.path.join(font_dir, "output", os.path.splitext(filename)[0])
+    selected_fonts = sorted(
+        [(i, numbered_fonts[i]) for i in normalized_inputs if i in numbered_fonts]
+    )
 
-            # Create output directory if it doesn't exist
-            os.makedirs(output_dir, exist_ok=True)
+    print("Selected fonts:")
+    for number, selected_font in selected_fonts:
+        print(f"{number}. {os.path.basename(selected_font)}")
 
-            create_static_fonts(input_font, output_dir, weights)
+    user_input = input("\nContinue? (enter to confirm)")
+    if user_input != "":
+        return
 
-
-if __name__ == "__main__":
-    # Get the directory of the script
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # Construct the path to the font folder in the virtual environment
-    venv_font_dir = os.path.join(script_dir, "..", "..", "myenv", "fonts")
-
-    # Check if the font directory exists
-    if not os.path.exists(venv_font_dir):
-        logging.error(f"Font directory not found: {venv_font_dir}")
-        sys.exit(1)
-
-    logging.info(f"Processing fonts in directory: {venv_font_dir}")
-    process_fonts_in_directory(venv_font_dir)
-    logging.info("All font conversions completed")
+    create_static_fonts(selected_fonts)
