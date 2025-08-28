@@ -13,6 +13,7 @@ LOGS_DIR = os.path.join(
         os.path.abspath(__file__),
     ),
     "..",
+    "..",
     "logs",
 )
 os.makedirs(LOGS_DIR, exist_ok=True)
