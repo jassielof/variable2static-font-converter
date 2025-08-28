@@ -5,11 +5,12 @@ from datetime import datetime
 import os
 from fontTools import ttLib
 
-from lib.weights import WEIGHTS
-from lib.ui import select_fonts, get_overwrite_choice
-from lib.processors import create_static_font_instance
+from variable2static.lib.processors import create_static_font_instance
+from variable2static.lib.ui import get_overwrite_choice, select_fonts
+from variable2static.lib.weights import WEIGHTS
 
 
+# new
 LOGS_DIR = os.path.join(
     os.path.dirname(
         os.path.abspath(__file__),

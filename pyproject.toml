@@ -9,7 +9,7 @@ dependencies = [
 ]
 
 [project.scripts]
-dev = "variable2static:main"
+variable2static-font-converter = "variable2static:main"
 
 [build-system]
 requires = ["uv_build>=0.8.13,<0.9.0"]
